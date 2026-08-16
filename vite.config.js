@@ -9,38 +9,40 @@ const LOOKBOOK_ROOT = path.join(__dirname, "public", "lookbook");
 const VIRTUAL = "virtual:lookbook-files";
 const RESOLVED = "\0" + VIRTUAL;
 const IMAGE = /\.(png|jpe?g|webp|gif)$/i;
+const PAGES_BASE = "/Protfolio/";
 
-function publicUrl(parts) {
-  return "/" + parts.map(encodeURIComponent).join("/");
+function publicUrl(base, parts) {
+  const prefix = base.endsWith("/") ? base.slice(0, -1) : base;
+  return `${prefix}/` + parts.map(encodeURIComponent).join("/");
 }
 
-function scanNode(abs, urlParts) {
+function scanNode(abs, urlParts, base) {
   if (!fs.existsSync(abs)) return { images: [], children: {} };
   const entries = fs.readdirSync(abs, { withFileTypes: true });
   const images = entries
     .filter((e) => e.isFile() && IMAGE.test(e.name))
     .map((e) => e.name)
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
-    .map((name) => publicUrl([...urlParts, name]));
+    .map((name) => publicUrl(base, [...urlParts, name]));
   const children = {};
   for (const dir of entries) {
     if (!dir.isDirectory() || dir.name.startsWith("_")) continue;
-    children[dir.name] = scanNode(path.join(abs, dir.name), [...urlParts, dir.name]);
+    children[dir.name] = scanNode(path.join(abs, dir.name), [...urlParts, dir.name], base);
   }
   return { images, children };
 }
 
-function scanLookbook() {
+function scanLookbook(base) {
   if (!fs.existsSync(LOOKBOOK_ROOT)) return {};
   const tree = {};
   for (const dir of fs.readdirSync(LOOKBOOK_ROOT, { withFileTypes: true })) {
     if (!dir.isDirectory() || dir.name.startsWith("_")) continue;
-    tree[dir.name] = scanNode(path.join(LOOKBOOK_ROOT, dir.name), ["lookbook", dir.name]);
+    tree[dir.name] = scanNode(path.join(LOOKBOOK_ROOT, dir.name), ["lookbook", dir.name], base);
   }
   return tree;
 }
 
-function lookbookPlugin() {
+function lookbookPlugin(base) {
   const isLookbook = (file) =>
     path.normalize(file).startsWith(path.normalize(LOOKBOOK_ROOT));
 
@@ -51,7 +53,7 @@ function lookbookPlugin() {
     },
     load(id) {
       if (id !== RESOLVED) return;
-      return `export default ${JSON.stringify(scanLookbook())}`;
+      return `export default ${JSON.stringify(scanLookbook(base))}`;
     },
     configureServer(server) {
       server.watcher.add(LOOKBOOK_ROOT);
@@ -68,6 +70,10 @@ function lookbookPlugin() {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), lookbookPlugin()],
+export default defineConfig(({ command }) => {
+  const base = command === "build" ? PAGES_BASE : "/";
+  return {
+    base,
+    plugins: [react(), lookbookPlugin(base)],
+  };
 });

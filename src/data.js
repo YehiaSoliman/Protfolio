@@ -1,11 +1,13 @@
+const asset = (p) => `${import.meta.env.BASE_URL}${p.replace(/^\//, "")}`;
+
 export const site = {
   name: "Marwa Auda",
   nameAr: "مروة عودة",
   email: "marwaauda@hotmail.com",
   phone: "+(02) 01118802220",
   phoneHref: "tel:+201118802220",
-  // portrait: "/media/portrait.png",
-  portrait: "/media/Profile 1.jpg",
+  // portrait: asset("media/portrait.png"),
+  portrait: asset("media/Profile 1.jpg"),
   portraitAlt: {
     en: "Marwa Auda in an embroidered black garment with red and white beadwork",
     ar: "مروة عودة بزي مطرز أسود وأحمر",
